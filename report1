@@ -1,0 +1,113 @@
+# 1. 행렬 입력 기능
+def input_matrix():
+    n = int(input("정방행렬의 크기 n을 입력하세요: "))
+    matrix = []
+    print("행렬의 각 행을 공백으로 구분하여 입력하세요:")
+    for _ in range(n):
+        row = list(map(float, input().split()))
+        if len(row) != n:
+            raise ValueError("행의 원소 개수가 n과 다릅니다.")
+        matrix.append(row)
+    return matrix
+
+# 2. 행렬식 이용 역행렬
+def determinant(matrix):
+    n = len(matrix)
+    if n == 1:
+        return matrix[0][0]
+    det = 0
+    for c in range(n):
+        minor = [row[:c]+row[c+1:] for row in matrix[1:]]
+        det += ((-1)**c) * matrix[0][c] * determinant(minor)
+    return det
+
+def matrix_cofactor(matrix):
+    n = len(matrix)
+    cof = []
+    for i in range(n):
+        cof_row = []
+        for j in range(n):
+            minor = [row[:j]+row[j+1:] for k,row in enumerate(matrix) if k != i]
+            cof_row.append(((-1)**(i+j)) * determinant(minor))
+        cof.append(cof_row)
+    return cof
+
+def transpose(matrix):
+    return [list(row) for row in zip(*matrix)]
+
+def inverse_by_determinant(matrix):
+    det = determinant(matrix)
+    if det == 0:
+        raise ValueError("역행렬이 존재하지 않습니다 (det=0).")
+    cof = matrix_cofactor(matrix)
+    adj = transpose(cof)
+    n = len(matrix)
+    return [[adj[i][j]/det for j in range(n)] for i in range(n)]
+
+# 3. 가우스-조던 소거법
+def inverse_by_gauss_jordan(matrix):
+    n = len(matrix)
+    A = [row[:] for row in matrix] # deep copy
+    I = [[float(i==j) for j in range(n)] for i in range(n)]
+    for col in range(n):
+        # Find the pivot
+        pivot = A[col][col]
+        if pivot == 0:
+            for i in range(col+1, n):
+                if A[i][col] != 0:
+                    A[col], A[i] = A[i], A[col]
+                    I[col], I[i] = I[i], I[col]
+                    pivot = A[col][col]
+                    break
+            else:
+                raise ValueError("역행렬이 존재하지 않습니다.")
+        # Normalize pivot row
+        for j in range(n):
+            A[col][j] /= pivot
+            I[col][j] /= pivot
+        # Eliminate other rows
+        for i in range(n):
+            if i != col:
+                factor = A[i][col]
+                for j in range(n):
+                    A[i][j] -= factor * A[col][j]
+                    I[i][j] -= factor * I[col][j]
+    return I
+
+# 4. 결과 출력 및 비교
+def print_matrix(matrix, name="결과"):
+    print(f"{name}:")
+    for row in matrix:
+        print(' '.join(f"{num:8.4f}" for num in row))
+    print()
+
+def matrices_equal(A, B, tol=1e-6):
+    n = len(A)
+    for i in range(n):
+        for j in range(n):
+            if abs(A[i][j] - B[i][j]) > tol:
+                return False
+    return True
+
+if __name__ == "__main__":
+    mat = input_matrix()
+    print_matrix(mat, "입력 행렬")
+    try:
+        inv_det = inverse_by_determinant(mat)
+        print_matrix(inv_det, "행렬식을 이용한 역행렬")
+    except ValueError as e:
+        print(e)
+        inv_det = None
+
+    try:
+        inv_gj = inverse_by_gauss_jordan(mat)
+        print_matrix(inv_gj, "가우스-조던 소거법 역행렬")
+    except ValueError as e:
+        print(e)
+        inv_gj = None
+
+    if inv_det is not None and inv_gj is not None:
+        if matrices_equal(inv_det, inv_gj):
+            print("두 방법의 역행렬이 동일합니다.")
+        else:
+            print("역행렬 결과가 다릅니다.")
